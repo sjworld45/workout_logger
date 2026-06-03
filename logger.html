@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RepLog — Workout Tracker</title>
+<style>
+/* ============================================================
+   FONTS & RESET
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=Figtree:wght@400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ============================================================
+   CSS VARIABLES — Industrial-Utilitarian Palette
+   ============================================================ */
+:root {
+  --bg:         #f4f1ec;
+  --surface:    #ffffff;
+  --surface2:   #faf8f5;
+  --border:     #e2ddd6;
+  --border2:    #ccc7be;
+  --text:       #1a1714;
+  --text2:      #6b6560;
+  --text3:      #9e9891;
+  --accent:     #d4541a;
+  --accent-lt:  #fde8dc;
+  --accent2:    #1a5cd4;
+  --accent2-lt: #dce8fd;
+  --green:      #1a8c4e;
+  --green-lt:   #d4f0e3;
+  --yellow:     #c97b00;
+  --yellow-lt:  #fef0cc;
+  --red:        #c41a1a;
+  --red-lt:     #fce8e8;
+  --shadow:     0 1px 3px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05);
+  --shadow-lg:  0 2px 8px rgba(0,0,0,.09), 0 8px 32px rgba(0,0,0,.08);
+  --radius:     10px;
+  --radius-sm:  6px;
+  --mono:       'DM Mono', monospace;
+  --display:    'Syne', sans-serif;
+  --body:       'Figtree', sans-serif;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.app-wrapper {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 16px 60px;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 0 20px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.logo {
+  font-family: var(--display);
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.5px;
+}
+.logo span { color: var(--accent); }
+
+.header-meta {
+  font-family: var(--mono);
+  font-size: .75rem;
+  color: var(--text3);
+  text-align: right;
+}
+.header-meta strong { color: var(--text2); font-weight: 500; }
+
+/* ============================================================
+   TABS
+   ============================================================ */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  flex: 1;
+  min-width: 110px;
+  padding: 9px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--body);
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text2);
+  transition: all .18s ease;
+  white-space: nowrap;
+}
+.tab-btn:hover { background: var(--surface2); color: var(--text); }
+.tab-btn.active {
+  background: var(--text);
+  color: #fff;
+}
+
+/* ============================================================
+   PANELS
+   ============================================================ */
+.panel { display: none; animation: fadeUp .25s ease; }
+.panel.active { display: block; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   CARDS
+   ============================================================ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+.card-title {
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title .icon {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .95rem;
+  flex-shrink: 0;
+}
+.icon-orange { background: var(--accent-lt); }
+.icon-blue   { background: var(--accent2-lt); }
+.icon-green  { background: var(--green-lt); }
+
+/* ============================================================
+   FORM
+   ============================================================ */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.field.wide { grid-column: 1 / -1; }
+
+label {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  font-family: var(--mono);
+}
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="search"] {
+  padding: 9px 12px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  font-family: var(--body);
+  font-size: .9rem;
+  color: var(--text);
+  background: var(--bg);
+  transition: border-color .15s, box-shadow .15s;
+  -moz-appearance: textfield;
+  width: 100%;
+}
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button { -webkit-appearance: none; }
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-lt);
+}
+input.error { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-lt); }
+
+.form-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--body);
+  font-size: .875rem;
+  font-weight: 600;
+  transition: all .15s ease;
+}
+.btn:active { transform: scale(.97); }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: #b8451a; }
+
+.btn-secondary {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border2);
+}
+.btn-secondary:hover { background: var(--border); }
+
+.btn-green {
+  background: var(--green);
+  color: #fff;
+}
+.btn-green:hover { background: #157040; }
+
+.btn-danger {
+  background: var(--red-lt);
+  color: var(--red);
+  border: 1px solid #f0bfbf;
+}
+.btn-danger:hover { background: #f8d5d5; }
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: .78rem;
+}
+
+/* ============================================================
+   FILTERS
+   ============================================================ */
+.filters-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.filters-row .field { flex: 1; min-width: 160px; }
+.filters-row .btn   { align-self: flex-end; }
+
+/* ============================================================
+   TABLE
+   ============================================================ */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .84rem;
+}
+thead th {
+  background: var(--surface2);
+  padding: 10px 12px;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: .7rem;
+  font-weight: 500;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background .12s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface2); }
+tbody td {
+  padding: 9px 12px;
+  color: var(--text);
+  vertical-align: middle;
+}
+td.mono { font-family: var(--mono); font-size: .78rem; color: var(--text2); }
+td.exname { font-weight: 600; }
+td.num {
+  font-family: var(--mono);
+  font-size: .82rem;
+  text-align: right;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: .7rem;
+  font-weight: 500;
+}
+.badge-day { background: var(--yellow-lt); color: var(--yellow); }
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text3);
+}
+.empty-state .big { font-size: 2.5rem; margin-bottom: 10px; }
+.empty-state p { font-size: .9rem; }
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--text);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: .85rem;
+  font-weight: 500;
+  animation: toastIn .2s ease;
+  max-width: 280px;
+  box-shadow: var(--shadow-lg);
+}
+.toast.success { background: var(--green); }
+.toast.error   { background: var(--red); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 600px) {
+  .app-header { padding: 18px 0 14px; }
+  .logo { font-size: 1.5rem; }
+  .tab-btn { font-size: .78rem; padding: 8px 10px; min-width: 85px; }
+  .card { padding: 18px 16px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .form-grid { grid-template-columns: 1fr 1fr; }
+}
+/* ============================================================
+   BODY WEIGHT TAB
+   ============================================================ */
+.bw-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+/* Sparkline chart */
+.bw-chart {
+  width: 100%;
+  height: 140px;
+  display: block;
+}
+
+.bw-summary-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.bw-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bw-stat-label {
+  font-family: var(--mono);
+  font-size: .68rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.bw-stat-value {
+  font-family: var(--display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.bw-stat-value.up   { color: var(--accent); }
+.bw-stat-value.down { color: var(--green); }
+
+@media (max-width: 600px) {
+  .bw-form-row { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- ========== HEADER ========== -->
+  <header class="app-header">
+    <div class="logo">Rep<span>Log</span></div>
+    <div class="header-meta">
+      <strong id="live-date">—</strong><br>
+      Workout Tracker
+    </div>
+  </header>
+
+  <!-- ========== TABS ========== -->
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="log">➕ Log Workout</button>
+    <button class="tab-btn" data-tab="history">📋 History</button>
+    <button class="tab-btn" data-tab="bodyweight">⚖️ Body Weight</button>
+  </nav>
+
+  <!-- ============================================================
+       PANEL: LOG WORKOUT
+       ============================================================ -->
+  <div class="panel active" id="panel-log">
+    <div class="card">
+      <div class="card-title">
+        <span class="icon icon-orange">🏋️</span>
+        New Workout Entry
+      </div>
+
+      <div class="form-grid">
+        <div class="field wide">
+          <label for="exercise-name">Exercise Name *</label>
+          <input type="text" id="exercise-name" placeholder="e.g. Bench Press" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="exercise-num">Exercise Number *</label>
+          <input type="number" id="exercise-num" placeholder="1" min="1" />
+        </div>
+        <div class="field">
+          <label for="set-no">Set No. *</label>
+          <input type="number" id="set-no" placeholder="1" min="1" />
+        </div>
+        <div class="field">
+          <label for="reps">Reps *</label>
+          <input type="number" id="reps" placeholder="10" min="0" />
+        </div>
+        <div class="field">
+          <label for="weight">Weight (kg) *</label>
+          <input type="number" id="weight" placeholder="60" min="0" step="0.5" />
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" id="btn-save">💾 Save Entry</button>
+        <button class="btn btn-secondary" id="btn-clear-form">✕ Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PANEL: HISTORY
+       ============================================================ -->
+  <div class="panel" id="panel-history">
+    <div class="card">
+      <div class="card-title">
+        <span class="icon icon-blue">🔍</span>
+        Search & Filter
+      </div>
+      <div class="filters-row">
+        <div class="field">
+          <label for="search-name">Exercise Name</label>
+          <input type="search" id="search-name" placeholder="Search…" />
+        </div>
+        <div class="field">
+          <label for="filter-date">Filter by Date</label>
+          <input type="date" id="filter-date" />
+        </div>
+        <button class="btn btn-secondary" id="btn-clear-filters">Clear Filters</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span class="icon icon-blue">📋</span>
+          Workout Logs
+        </span>
+        <span style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-green btn-sm" id="btn-export">⬇️ Export CSV</button>
+          <button class="btn btn-danger btn-sm" id="btn-delete-all">🗑️ Delete All</button>
+        </span>
+      </div>
+
+      <div id="logs-count" style="font-size:.8rem;color:var(--text3);margin-bottom:12px;font-family:var(--mono);"></div>
+
+      <div class="table-wrap" id="table-container">
+        <!-- table injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PANEL: BODY WEIGHT
+       ============================================================ -->
+  <div class="panel" id="panel-bodyweight">
+
+    <!-- Log today's weight -->
+    <div class="card">
+      <div class="card-title">
+        <span class="icon icon-green">⚖️</span>
+        Log Body Weight
+      </div>
+      <div class="bw-form-row">
+        <div class="field">
+          <label for="bw-date">Date</label>
+          <input type="date" id="bw-date" />
+        </div>
+        <div class="field">
+          <label for="bw-value">Weight (kg) *</label>
+          <input type="number" id="bw-value" placeholder="e.g. 75.5" min="0" step="0.1" />
+        </div>
+        <div class="field">
+          <label for="bw-note">Note (optional)</label>
+          <input type="text" id="bw-note" placeholder="Morning, post-meal…" />
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="btn-bw-save">💾 Save Weight</button>
+        <button class="btn btn-secondary" id="btn-bw-clear">✕ Clear</button>
+      </div>
+    </div>
+
+    <!-- Sparkline trend -->
+    <div class="card">
+      <div class="card-title">
+        <span class="icon icon-blue">📈</span>
+        Trend (last 30 entries)
+      </div>
+      <div id="bw-chart-wrap">
+        <div class="empty-state"><div class="big">📉</div><p>Log at least 2 entries to see your trend.</p></div>
+      </div>
+    </div>
+
+    <!-- History table -->
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span class="icon icon-green">📋</span>
+          Weight Log
+        </span>
+        <button class="btn btn-danger btn-sm" id="btn-bw-delete-all">🗑️ Delete All</button>
+      </div>
+      <div id="bw-logs-count" style="font-size:.8rem;color:var(--text3);margin-bottom:12px;font-family:var(--mono);"></div>
+      <div class="table-wrap" id="bw-table-container"></div>
+    </div>
+
+  </div>
+
+</div><!-- /app-wrapper -->
+
+<!-- ========== TOAST CONTAINER ========== -->
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+/* ============================================================
+   CONSTANTS & HELPERS
+   ============================================================ */
+const STORAGE_KEY = 'replog_entries_v1';
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+/** Generate a simple unique ID */
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+/** Pad number to 2 digits */
+function pad(n) { return String(n).padStart(2, '0'); }
+
+/** Format date as YYYY-MM-DD */
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+/** Format timestamp HH:MM:SS */
+function nowTime() {
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/** Current day name */
+function todayName() { return DAYS[new Date().getDay()]; }
+
+/** Show a toast notification */
+function toast(msg, type = 'default', dur = 2800) {
+  const tc = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  tc.appendChild(el);
+  setTimeout(() => el.remove(), dur);
+}
+
+/* ============================================================
+   DATA LAYER — localStorage
+   ============================================================ */
+
+/** Load all entries from localStorage */
+function loadEntries() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error('RepLog: failed to load entries', e);
+    return [];
+  }
+}
+
+/** Save all entries to localStorage */
+function saveEntries(entries) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch (e) {
+    console.error('RepLog: failed to save entries', e);
+    toast('Storage error — data may not have saved.', 'error');
+  }
+}
+
+/** Add a new entry */
+function addEntry(data) {
+  const entries = loadEntries();
+  const entry = {
+    id:           uid(),
+    date:         todayISO(),
+    day:          todayName(),
+    timestamp:    nowTime(),
+    exerciseName: data.exerciseName.trim(),
+    exerciseNum:  Number(data.exerciseNum),
+    setNo:        Number(data.setNo),
+    reps:         Number(data.reps),
+    weight:       Number(data.weight),
+  };
+  entries.unshift(entry); // newest first
+  saveEntries(entries);
+  return entry;
+}
+
+/** Delete a single entry by id */
+function deleteEntry(id) {
+  const entries = loadEntries().filter(e => e.id !== id);
+  saveEntries(entries);
+}
+
+/** Delete all entries */
+function deleteAllEntries() {
+  saveEntries([]);
+}
+
+/* ============================================================
+   TABS
+   ============================================================ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'history') renderLogs();
+    if (btn.dataset.tab === 'bodyweight') { initBWForm(); renderBWLogs(); }
+  });
+});
+
+/* ============================================================
+   LIVE DATE IN HEADER
+   ============================================================ */
+function updateLiveDate() {
+  const d = new Date();
+  document.getElementById('live-date').textContent =
+    `${DAYS[d.getDay()]}, ${d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'})}`;
+}
+updateLiveDate();
+setInterval(updateLiveDate, 60000);
+
+/* ============================================================
+   FORM — SAVE ENTRY
+   ============================================================ */
+const fields = {
+  exerciseName: document.getElementById('exercise-name'),
+  exerciseNum:  document.getElementById('exercise-num'),
+  setNo:        document.getElementById('set-no'),
+  reps:         document.getElementById('reps'),
+  weight:       document.getElementById('weight'),
+};
+
+/** Validate form fields; returns true if valid */
+function validateForm() {
+  let ok = true;
+  Object.values(fields).forEach(f => f.classList.remove('error'));
+
+  if (!fields.exerciseName.value.trim()) {
+    fields.exerciseName.classList.add('error'); ok = false;
+  }
+  ['exerciseNum','setNo','reps','weight'].forEach(k => {
+    const v = fields[k].value;
+    if (v === '' || isNaN(Number(v)) || Number(v) < 0) {
+      fields[k].classList.add('error'); ok = false;
+    }
+  });
+  return ok;
+}
+
+/** Clear the form inputs */
+function clearForm() {
+  Object.values(fields).forEach(f => { f.value = ''; f.classList.remove('error'); });
+  fields.exerciseName.focus();
+}
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  if (!validateForm()) {
+    toast('Please fill all required fields.', 'error');
+    return;
+  }
+  addEntry({
+    exerciseName: fields.exerciseName.value,
+    exerciseNum:  fields.exerciseNum.value,
+    setNo:        fields.setNo.value,
+    reps:         fields.reps.value,
+    weight:       fields.weight.value,
+  });
+  toast('Entry saved! 💪', 'success');
+  clearForm();
+});
+
+document.getElementById('btn-clear-form').addEventListener('click', clearForm);
+
+/* ============================================================
+   HISTORY — RENDER LOGS
+   ============================================================ */
+function getFilteredEntries() {
+  const nameQ  = document.getElementById('search-name').value.trim().toLowerCase();
+  const dateQ  = document.getElementById('filter-date').value;
+  return loadEntries().filter(e => {
+    const nameMatch = !nameQ || e.exerciseName.toLowerCase().includes(nameQ);
+    const dateMatch = !dateQ || e.date === dateQ;
+    return nameMatch && dateMatch;
+  });
+}
+
+function renderLogs() {
+  const entries = getFilteredEntries();
+  const total   = loadEntries().length;
+  const wrap    = document.getElementById('table-container');
+  const countEl = document.getElementById('logs-count');
+
+  countEl.textContent = entries.length === total
+    ? `${total} entr${total === 1 ? 'y' : 'ies'} total`
+    : `Showing ${entries.length} of ${total} entries`;
+
+  if (entries.length === 0) {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <div class="big">📭</div>
+        <p>${total === 0 ? 'No workouts logged yet. Start by adding an entry!' : 'No entries match your filters.'}</p>
+      </div>`;
+    return;
+  }
+
+  const rows = entries.map(e => `
+    <tr data-id="${e.id}">
+      <td class="mono">${e.date}</td>
+      <td><span class="badge badge-day">${e.day}</span></td>
+      <td class="num">${e.exerciseNum}</td>
+      <td class="exname">${escHtml(e.exerciseName)}</td>
+      <td class="num">${e.setNo}</td>
+      <td class="num">${e.reps}</td>
+      <td class="num">${e.weight}</td>
+      <td class="mono">${e.timestamp}</td>
+      <td>
+        <button class="btn btn-danger btn-sm btn-del-row" data-id="${e.id}">Delete</button>
+      </td>
+    </tr>`).join('');
+
+  wrap.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Day</th>
+          <th>#</th>
+          <th>Exercise</th>
+          <th>Set</th>
+          <th>Reps</th>
+          <th>Weight</th>
+          <th>Time</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  // Attach delete row listeners
+  wrap.querySelectorAll('.btn-del-row').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('Delete this entry?')) return;
+      deleteEntry(btn.dataset.id);
+      toast('Entry deleted.', 'default');
+      renderLogs();
+    });
+  });
+}
+
+/** Escape HTML special chars */
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+// Filter inputs — real-time update
+document.getElementById('search-name').addEventListener('input', renderLogs);
+document.getElementById('filter-date').addEventListener('input', renderLogs);
+
+document.getElementById('btn-clear-filters').addEventListener('click', () => {
+  document.getElementById('search-name').value = '';
+  document.getElementById('filter-date').value = '';
+  renderLogs();
+});
+
+// Delete All
+document.getElementById('btn-delete-all').addEventListener('click', () => {
+  const count = loadEntries().length;
+  if (count === 0) { toast('No entries to delete.', 'default'); return; }
+  if (!confirm(`Delete all ${count} workout entries? This cannot be undone.`)) return;
+  deleteAllEntries();
+  toast('All entries deleted.', 'default');
+  renderLogs();
+});
+
+/* ============================================================
+   CSV EXPORT
+   ============================================================ */
+document.getElementById('btn-export').addEventListener('click', () => {
+  const entries = loadEntries();
+  if (entries.length === 0) { toast('No data to export.', 'default'); return; }
+
+  const headers = ['Date','Day','Exercise Number','Exercise Name','Set No.','Reps','Weight (kg)','Timestamp'];
+  const rows = entries.map(e => [
+    e.date, e.day, e.exerciseNum,
+    `"${e.exerciseName.replace(/"/g,'""')}"`,
+    e.setNo, e.reps, e.weight, e.timestamp
+  ].join(','));
+
+  const csv = [headers.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'workout_logs.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exported! ⬇️', 'success');
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(function init() {
+  // Pre-fill set/exercise numbers for convenience
+  fields.exerciseName.focus();
+})();
+
+/* ============================================================
+   BODY WEIGHT — DATA LAYER
+   ============================================================ */
+const BW_KEY = 'replog_bodyweight_v1';
+
+function loadBWEntries() {
+  try {
+    const raw = localStorage.getItem(BW_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+
+function saveBWEntries(entries) {
+  try {
+    localStorage.setItem(BW_KEY, JSON.stringify(entries));
+  } catch (e) {
+    toast('Storage error — weight data may not have saved.', 'error');
+  }
+}
+
+function addBWEntry(data) {
+  const entries = loadBWEntries();
+  const entry = {
+    id:        uid(),
+    date:      data.date,
+    day:       DAYS[new Date(data.date + 'T12:00:00').getDay()],
+    weight:    Number(data.weight),
+    note:      data.note.trim(),
+    timestamp: nowTime(),
+  };
+  // Remove existing entry for same date (one per day)
+  const filtered = entries.filter(e => e.date !== data.date);
+  filtered.unshift(entry);
+  filtered.sort((a, b) => b.date.localeCompare(a.date)); // newest first
+  saveBWEntries(filtered);
+  return entry;
+}
+
+function deleteBWEntry(id) {
+  saveBWEntries(loadBWEntries().filter(e => e.id !== id));
+}
+
+/* ============================================================
+   BODY WEIGHT — CHART (SVG sparkline)
+   ============================================================ */
+function renderBWChart(entries) {
+  const wrap = document.getElementById('bw-chart-wrap');
+  // Need at least 2 points
+  const pts = [...entries].sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
+  if (pts.length < 2) {
+    wrap.innerHTML = '<div class="empty-state"><div class="big">📉</div><p>Log at least 2 entries to see your trend.</p></div>';
+    return;
+  }
+
+  const W = 900, H = 140, PAD = { t: 14, b: 28, l: 48, r: 16 };
+  const iW = W - PAD.l - PAD.r;
+  const iH = H - PAD.t - PAD.b;
+
+  const weights = pts.map(p => p.weight);
+  const minW = Math.min(...weights);
+  const maxW = Math.max(...weights);
+  const rangeW = maxW - minW || 1;
+
+  const xScale = i => PAD.l + (i / (pts.length - 1)) * iW;
+  const yScale = w => PAD.t + iH - ((w - minW) / rangeW) * iH;
+
+  // Build polyline points
+  const linePoints = pts.map((p, i) => `${xScale(i)},${yScale(p.weight)}`).join(' ');
+
+  // Area fill path
+  const areaPath = `M${xScale(0)},${yScale(pts[0].weight)} ` +
+    pts.map((p, i) => `L${xScale(i)},${yScale(p.weight)}`).join(' ') +
+    ` L${xScale(pts.length-1)},${PAD.t+iH} L${xScale(0)},${PAD.t+iH} Z`;
+
+  // Y-axis labels
+  const yTicks = 3;
+  const yLabels = Array.from({length: yTicks}, (_, i) => {
+    const v = minW + (rangeW / (yTicks - 1)) * i;
+    const y = yScale(v);
+    return `<text x="${PAD.l - 6}" y="${y + 4}" text-anchor="end" font-size="10" fill="var(--text3)" font-family="var(--mono)">${v.toFixed(1)}</text>
+            <line x1="${PAD.l}" y1="${y}" x2="${PAD.l + iW}" y2="${y}" stroke="var(--border)" stroke-width="1"/>`;
+  }).join('');
+
+  // X-axis date labels (show up to 6 evenly spaced)
+  const xStep = Math.ceil(pts.length / 6);
+  const xLabels = pts
+    .filter((_, i) => i % xStep === 0 || i === pts.length - 1)
+    .map((p, _, arr) => {
+      const origIdx = pts.indexOf(p);
+      const x = xScale(origIdx);
+      const short = p.date.slice(5); // MM-DD
+      return `<text x="${x}" y="${H - 4}" text-anchor="middle" font-size="10" fill="var(--text3)" font-family="var(--mono)">${short}</text>`;
+    }).join('');
+
+  // Dot for last point
+  const lastX = xScale(pts.length - 1);
+  const lastY = yScale(pts[pts.length - 1].weight);
+
+  // Summary stats
+  const first = pts[0].weight;
+  const last  = pts[pts.length - 1].weight;
+  const diff  = last - first;
+  const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1) + ' kg';
+  const diffClass = diff > 0 ? 'up' : diff < 0 ? 'down' : '';
+
+  wrap.innerHTML = `
+    <svg class="bw-chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="bwGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--accent2)" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="var(--accent2)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${yLabels}
+      <path d="${areaPath}" fill="url(#bwGrad)"/>
+      <polyline points="${linePoints}" fill="none" stroke="var(--accent2)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${lastX}" cy="${lastY}" r="5" fill="var(--accent2)" stroke="white" stroke-width="2"/>
+      ${xLabels}
+    </svg>
+    <div class="bw-summary-row">
+      <div class="bw-stat">
+        <span class="bw-stat-label">Current</span>
+        <span class="bw-stat-value">${last.toFixed(1)} kg</span>
+      </div>
+      <div class="bw-stat">
+        <span class="bw-stat-label">Starting</span>
+        <span class="bw-stat-value">${first.toFixed(1)} kg</span>
+      </div>
+      <div class="bw-stat">
+        <span class="bw-stat-label">Change</span>
+        <span class="bw-stat-value ${diffClass}">${diffStr}</span>
+      </div>
+      <div class="bw-stat">
+        <span class="bw-stat-label">Entries</span>
+        <span class="bw-stat-value">${pts.length}</span>
+      </div>
+      <div class="bw-stat">
+        <span class="bw-stat-label">Lowest</span>
+        <span class="bw-stat-value down">${minW.toFixed(1)} kg</span>
+      </div>
+      <div class="bw-stat">
+        <span class="bw-stat-label">Highest</span>
+        <span class="bw-stat-value up">${maxW.toFixed(1)} kg</span>
+      </div>
+    </div>`;
+}
+
+/* ============================================================
+   BODY WEIGHT — RENDER TABLE
+   ============================================================ */
+function renderBWLogs() {
+  const entries = loadBWEntries();
+  const wrap    = document.getElementById('bw-table-container');
+  const countEl = document.getElementById('bw-logs-count');
+
+  countEl.textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} total`;
+
+  renderBWChart(entries);
+
+  if (entries.length === 0) {
+    wrap.innerHTML = '<div class="empty-state"><div class="big">📭</div><p>No weight entries yet. Log your first one above!</p></div>';
+    return;
+  }
+
+  const rows = entries.map(e => `
+    <tr>
+      <td class="mono">${e.date}</td>
+      <td><span class="badge badge-day">${e.day}</span></td>
+      <td class="num" style="font-weight:600;">${e.weight.toFixed(1)}</td>
+      <td style="color:var(--text2);font-size:.82rem;">${escHtml(e.note || '—')}</td>
+      <td class="mono">${e.timestamp}</td>
+      <td><button class="btn btn-danger btn-sm btn-bw-del" data-id="${e.id}">Delete</button></td>
+    </tr>`).join('');
+
+  wrap.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Day</th><th>Weight (kg)</th><th>Note</th><th>Time</th><th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  wrap.querySelectorAll('.btn-bw-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('Delete this weight entry?')) return;
+      deleteBWEntry(btn.dataset.id);
+      toast('Entry deleted.', 'default');
+      renderBWLogs();
+    });
+  });
+}
+
+/* ============================================================
+   BODY WEIGHT — FORM & EVENT HANDLERS
+   ============================================================ */
+// Default date input to today
+function initBWForm() {
+  document.getElementById('bw-date').value = todayISO();
+}
+
+document.getElementById('btn-bw-save').addEventListener('click', () => {
+  const dateEl   = document.getElementById('bw-date');
+  const weightEl = document.getElementById('bw-value');
+  const noteEl   = document.getElementById('bw-note');
+
+  dateEl.classList.remove('error');
+  weightEl.classList.remove('error');
+
+  let ok = true;
+  if (!dateEl.value) { dateEl.classList.add('error'); ok = false; }
+  const wVal = parseFloat(weightEl.value);
+  if (weightEl.value === '' || isNaN(wVal) || wVal <= 0) {
+    weightEl.classList.add('error'); ok = false;
+  }
+  if (!ok) { toast('Please enter a valid date and weight.', 'error'); return; }
+
+  const existing = loadBWEntries().find(e => e.date === dateEl.value);
+  if (existing && !confirm(`You already logged ${existing.weight} kg on ${dateEl.value}. Replace it?`)) return;
+
+  addBWEntry({ date: dateEl.value, weight: wVal, note: noteEl.value });
+  toast('Weight saved! ⚖️', 'success');
+  weightEl.value = '';
+  noteEl.value   = '';
+  renderBWLogs();
+});
+
+document.getElementById('btn-bw-clear').addEventListener('click', () => {
+  document.getElementById('bw-date').value  = todayISO();
+  document.getElementById('bw-value').value = '';
+  document.getElementById('bw-note').value  = '';
+  ['bw-date','bw-value'].forEach(id => document.getElementById(id).classList.remove('error'));
+});
+
+document.getElementById('btn-bw-delete-all').addEventListener('click', () => {
+  const count = loadBWEntries().length;
+  if (count === 0) { toast('No entries to delete.', 'default'); return; }
+  if (!confirm(`Delete all ${count} weight entries? This cannot be undone.`)) return;
+  saveBWEntries([]);
+  toast('All weight entries deleted.', 'default');
+  renderBWLogs();
+});
+</script>
+</body>
+</html>
