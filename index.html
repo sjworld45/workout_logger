@@ -498,6 +498,8 @@ td.num {
   cursor: pointer;
   transition: border-color .15s, background .15s;
   margin-bottom: 14px;
+  display: block;
+  position: relative;
 }
 .import-dropzone:hover, .import-dropzone.dragover {
   border-color: var(--accent2);
@@ -1284,18 +1286,20 @@ function parseCSV(text) {
   return rows;
 }
 
-/** Show the import modal. onFile(file) called when user picks/drops a file. Returns close fn. */
+/** Show the import modal. onFile(text) called with file contents. Returns close fn. */
 function showImportModal({ title, hint, onFile }) {
+  const inputId = 'im-file-' + uid();
   const overlay = document.createElement('div');
   overlay.className = 'import-overlay';
   overlay.innerHTML = `
     <div class="import-modal">
       <h3>⬆️ ${title}</h3>
       <p>${hint}</p>
-      <div class="import-dropzone" id="im-dropzone">
+      <label for="${inputId}" class="import-dropzone" id="im-dropzone">
         <div class="drop-icon">📂</div>
-        <p>Drop your CSV file here, or <strong>click to browse</strong></p>
-      </div>
+        <p>Tap to choose a CSV file<br><span style="font-size:.75rem;color:var(--text3);">or drag &amp; drop on desktop</span></p>
+        <input type="file" id="${inputId}" accept=".csv,text/csv" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;" />
+      </label>
       <div class="import-result" id="im-result"></div>
       <div class="import-modal-actions">
         <button class="btn btn-secondary" id="im-close">Close</button>
@@ -1303,7 +1307,8 @@ function showImportModal({ title, hint, onFile }) {
     </div>`;
   document.body.appendChild(overlay);
 
-  const dropzone  = overlay.querySelector('#im-dropzone');
+  const dropzone = overlay.querySelector('#im-dropzone');
+  const fileInput = overlay.querySelector(`#${inputId}`);
   const resultEl  = overlay.querySelector('#im-result');
   const closeBtn  = overlay.querySelector('#im-close');
 
@@ -1314,7 +1319,8 @@ function showImportModal({ title, hint, onFile }) {
   }
 
   function handleFile(file) {
-    if (!file || !file.name.endsWith('.csv')) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') {
       showResult('❌ Please select a valid .csv file.', false); return;
     }
     const reader = new FileReader();
@@ -1325,14 +1331,13 @@ function showImportModal({ title, hint, onFile }) {
     reader.readAsText(file);
   }
 
-  // Click to browse via hidden input
-  const fi = document.createElement('input');
-  fi.type = 'file'; fi.accept = '.csv'; fi.style.display = 'none';
-  document.body.appendChild(fi);
-  dropzone.addEventListener('click', () => fi.click());
-  fi.addEventListener('change', () => { if (fi.files[0]) handleFile(fi.files[0]); fi.value = ''; });
+  // File picked via the label/input (works on Android)
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    fileInput.value = '';
+  });
 
-  // Drag & drop
+  // Drag & drop (desktop)
   dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
   dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
   dropzone.addEventListener('drop', e => {
@@ -1341,7 +1346,7 @@ function showImportModal({ title, hint, onFile }) {
   });
 
   // Close
-  function close() { overlay.remove(); fi.remove(); }
+  function close() { overlay.remove(); }
   closeBtn.addEventListener('click', close);
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
