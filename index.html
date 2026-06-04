@@ -449,6 +449,74 @@ td.num {
 @media (max-width: 600px) {
   .bw-form-row { grid-template-columns: 1fr 1fr; }
 }
+/* ============================================================
+   CSV IMPORT MODAL
+   ============================================================ */
+.import-overlay {
+  position: fixed; inset: 0;
+  background: rgba(26,23,20,.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10000;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+.import-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  max-width: 480px;
+  width: calc(100% - 32px);
+  box-shadow: var(--shadow-lg);
+}
+.import-modal h3 {
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.import-modal p {
+  font-size: .82rem;
+  color: var(--text2);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.import-modal code {
+  font-family: var(--mono);
+  font-size: .75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+.import-dropzone {
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  margin-bottom: 14px;
+}
+.import-dropzone:hover, .import-dropzone.dragover {
+  border-color: var(--accent2);
+  background: var(--accent2-lt);
+}
+.import-dropzone .drop-icon { font-size: 2rem; margin-bottom: 8px; }
+.import-dropzone p { color: var(--text2); font-size: .85rem; margin-bottom: 0; }
+.import-dropzone strong { color: var(--accent2); }
+.import-result {
+  font-family: var(--mono);
+  font-size: .78rem;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+  display: none;
+}
+.import-result.ok    { background: var(--green-lt);  color: var(--green); }
+.import-result.error { background: var(--red-lt);    color: var(--red); }
+.import-modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 </style>
 </head>
 <body>
@@ -540,6 +608,8 @@ td.num {
           Workout Logs
         </span>
         <span style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" id="btn-import">⬆️ Import CSV</button>
+          <input type="file" id="import-csv-input" accept=".csv" style="display:none" />
           <button class="btn btn-green btn-sm" id="btn-export">⬇️ Export CSV</button>
           <button class="btn btn-danger btn-sm" id="btn-delete-all">🗑️ Delete All</button>
         </span>
@@ -602,7 +672,12 @@ td.num {
           <span class="icon icon-green">📋</span>
           Weight Log
         </span>
-        <button class="btn btn-danger btn-sm" id="btn-bw-delete-all">🗑️ Delete All</button>
+        <span style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" id="btn-bw-import">⬆️ Import CSV</button>
+          <input type="file" id="bw-import-csv-input" accept=".csv" style="display:none" />
+          <button class="btn btn-green btn-sm" id="btn-bw-export">⬇️ Export CSV</button>
+          <button class="btn btn-danger btn-sm" id="btn-bw-delete-all">🗑️ Delete All</button>
+        </span>
       </div>
       <div id="bw-logs-count" style="font-size:.8rem;color:var(--text3);margin-bottom:12px;font-family:var(--mono);"></div>
       <div class="table-wrap" id="bw-table-container"></div>
@@ -1167,6 +1242,270 @@ document.getElementById('btn-bw-delete-all').addEventListener('click', () => {
   saveBWEntries([]);
   toast('All weight entries deleted.', 'default');
   renderBWLogs();
+});
+
+/* ============================================================
+   CSV IMPORT — SHARED UTILITIES
+   ============================================================ */
+
+/** Parse a raw CSV string into an array of header-keyed objects */
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n');
+  if (lines.length < 2) return [];
+
+  // Parse a single CSV line respecting quoted fields
+  function parseLine(line) {
+    const out = [];
+    let cur = '', inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuote && line[i+1] === '"') { cur += '"'; i++; }
+        else inQuote = !inQuote;
+      } else if (ch === ',' && !inQuote) {
+        out.push(cur.trim()); cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur.trim());
+    return out;
+  }
+
+  const headers = parseLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h] = vals[idx] !== undefined ? vals[idx] : ''; });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+/** Show the import modal. onFile(file) called when user picks/drops a file. Returns close fn. */
+function showImportModal({ title, hint, onFile }) {
+  const overlay = document.createElement('div');
+  overlay.className = 'import-overlay';
+  overlay.innerHTML = `
+    <div class="import-modal">
+      <h3>⬆️ ${title}</h3>
+      <p>${hint}</p>
+      <div class="import-dropzone" id="im-dropzone">
+        <div class="drop-icon">📂</div>
+        <p>Drop your CSV file here, or <strong>click to browse</strong></p>
+      </div>
+      <div class="import-result" id="im-result"></div>
+      <div class="import-modal-actions">
+        <button class="btn btn-secondary" id="im-close">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const dropzone  = overlay.querySelector('#im-dropzone');
+  const resultEl  = overlay.querySelector('#im-result');
+  const closeBtn  = overlay.querySelector('#im-close');
+
+  function showResult(msg, ok) {
+    resultEl.textContent = msg;
+    resultEl.className = 'import-result ' + (ok ? 'ok' : 'error');
+    resultEl.style.display = 'block';
+  }
+
+  function handleFile(file) {
+    if (!file || !file.name.endsWith('.csv')) {
+      showResult('❌ Please select a valid .csv file.', false); return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const msg = onFile(e.target.result);
+      showResult(msg.text, msg.ok);
+    };
+    reader.readAsText(file);
+  }
+
+  // Click to browse via hidden input
+  const fi = document.createElement('input');
+  fi.type = 'file'; fi.accept = '.csv'; fi.style.display = 'none';
+  document.body.appendChild(fi);
+  dropzone.addEventListener('click', () => fi.click());
+  fi.addEventListener('change', () => { if (fi.files[0]) handleFile(fi.files[0]); fi.value = ''; });
+
+  // Drag & drop
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault(); dropzone.classList.remove('dragover');
+    handleFile(e.dataTransfer.files[0]);
+  });
+
+  // Close
+  function close() { overlay.remove(); fi.remove(); }
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  return close;
+}
+
+/* ============================================================
+   CSV IMPORT — WORKOUT LOGS
+   Expected columns (case-insensitive, order flexible):
+   Date, Day, Exercise Number, Exercise Name, Set No., Reps, Weight, Timestamp
+   ============================================================ */
+document.getElementById('btn-import').addEventListener('click', () => {
+  showImportModal({
+    title: 'Import Workout Logs',
+    hint:  `CSV must include columns: <code>Date</code>, <code>Exercise Name</code>, <code>Exercise Number</code>, <code>Set No.</code>, <code>Reps</code>, <code>Weight</code>. Extra columns are ignored. Duplicate entries are added as new rows.`,
+    onFile(text) {
+      const rows = parseCSV(text);
+      if (!rows.length) return { text: '❌ File appears empty or unreadable.', ok: false };
+
+      // Flexible header mapping
+      const MAP = {
+        date:         ['date'],
+        exerciseName: ['exercisename','exercise name','exercise'],
+        exerciseNum:  ['exercisenumber','exercise number','exercisenum','#'],
+        setNo:        ['setno','set no','set no.','set','setnumber'],
+        reps:         ['reps','repetitions'],
+        weight:       ['weight','weight kg','weightkg'],
+        timestamp:    ['timestamp','time'],
+        day:          ['day'],
+      };
+
+      function pick(row, keys) {
+        for (const k of keys) { if (row[k] !== undefined) return row[k]; }
+        return '';
+      }
+
+      const existing = loadEntries();
+      const imported = [];
+      const errors   = [];
+
+      rows.forEach((row, i) => {
+        const date = pick(row, MAP.date);
+        const name = pick(row, MAP.exerciseName);
+        const exNum = pick(row, MAP.exerciseNum);
+        const setNo = pick(row, MAP.setNo);
+        const reps  = pick(row, MAP.reps);
+        const weight = pick(row, MAP.weight);
+
+        if (!date || !name) {
+          errors.push(`Row ${i+2}: missing Date or Exercise Name`); return;
+        }
+        if (isNaN(parseFloat(weight)) || isNaN(parseInt(reps))) {
+          errors.push(`Row ${i+2}: invalid Reps or Weight`); return;
+        }
+
+        imported.push({
+          id:           uid(),
+          date:         date.trim(),
+          day:          pick(row, MAP.day) || DAYS[new Date(date.trim()+'T12:00:00').getDay()] || '',
+          timestamp:    pick(row, MAP.timestamp) || nowTime(),
+          exerciseName: name.trim(),
+          exerciseNum:  Number(exNum) || 1,
+          setNo:        Number(setNo) || 1,
+          reps:         Number(reps),
+          weight:       parseFloat(weight),
+        });
+      });
+
+      if (!imported.length) {
+        return { text: `❌ No valid rows found. ${errors[0] || ''}`, ok: false };
+      }
+
+      // Merge: prepend imported, sort newest first
+      const merged = [...imported, ...existing].sort((a,b) => b.date.localeCompare(a.date));
+      saveEntries(merged);
+      renderLogs();
+
+      const warn = errors.length ? ` (${errors.length} row${errors.length>1?'s':''} skipped)` : '';
+      return { text: `✅ Imported ${imported.length} entr${imported.length===1?'y':'ies'}${warn}.`, ok: true };
+    }
+  });
+});
+
+document.getElementById('btn-bw-export').addEventListener('click', () => {
+  const entries = loadBWEntries();
+  if (entries.length === 0) { toast('No weight data to export.', 'default'); return; }
+
+  const headers = ['Date','Day','Weight (kg)','Note','Timestamp'];
+  const rows = entries.map(e => [
+    e.date, e.day, e.weight,
+    `"${(e.note || '').replace(/"/g,'""')}"`,
+    e.timestamp
+  ].join(','));
+
+  const csv  = [headers.join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'bodyweight_logs.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Body weight CSV exported! ⬇️', 'success');
+});
+
+/* ============================================================
+   CSV IMPORT — BODY WEIGHT
+   Expected columns: Date, Weight (kg), Note (optional)
+   ============================================================ */
+document.getElementById('btn-bw-import').addEventListener('click', () => {
+  showImportModal({
+    title: 'Import Body Weight Log',
+    hint:  `CSV must include columns: <code>Date</code> (YYYY-MM-DD) and <code>Weight</code> or <code>Weight (kg)</code>. <code>Note</code> is optional. One entry per date — existing entries for the same date will be overwritten.`,
+    onFile(text) {
+      const rows = parseCSV(text);
+      if (!rows.length) return { text: '❌ File appears empty or unreadable.', ok: false };
+
+      const MAP = {
+        date:   ['date'],
+        weight: ['weight','weightkg','weight kg','weightkg'],
+        note:   ['note','notes'],
+      };
+      function pick(row, keys) {
+        for (const k of keys) { if (row[k] !== undefined) return row[k]; }
+        return '';
+      }
+
+      const existing = loadBWEntries();
+      const imported = [];
+      const errors   = [];
+
+      rows.forEach((row, i) => {
+        const date   = pick(row, MAP.date).trim();
+        const weight = pick(row, MAP.weight);
+        const note   = pick(row, MAP.note);
+
+        if (!date) { errors.push(`Row ${i+2}: missing Date`); return; }
+        const wNum = parseFloat(weight);
+        if (isNaN(wNum) || wNum <= 0) { errors.push(`Row ${i+2}: invalid Weight`); return; }
+
+        imported.push({
+          id:        uid(),
+          date,
+          day:       DAYS[new Date(date+'T12:00:00').getDay()] || '',
+          weight:    wNum,
+          note:      note.trim(),
+          timestamp: nowTime(),
+        });
+      });
+
+      if (!imported.length) {
+        return { text: `❌ No valid rows found. ${errors[0] || ''}`, ok: false };
+      }
+
+      // Merge: imported overwrites same-date existing entries
+      const existingFiltered = existing.filter(e => !imported.find(i => i.date === e.date));
+      const merged = [...imported, ...existingFiltered].sort((a,b) => b.date.localeCompare(a.date));
+      saveBWEntries(merged);
+      renderBWLogs();
+
+      const warn = errors.length ? ` (${errors.length} row${errors.length>1?'s':''} skipped)` : '';
+      return { text: `✅ Imported ${imported.length} entr${imported.length===1?'y':'ies'}${warn}.`, ok: true };
+    }
+  });
 });
 </script>
 </body>
